@@ -1,0 +1,15 @@
+{
+  "name": "mechadiabot",
+  "version": "0.1.0",
+  "description": "Recode of #reddit-diabetes diabot in node",
+  "author": "funslug <funslug@funslug.com> (http://funslug.com)",
+  "scripts": {
+    "start": "node --harmony ./bot.js"
+  },
+  "dependencies": {
+    "irc": "^0.3.6",
+    "q": "^1.0.1",
+    "request": "^2.36.0",
+    "winston": "^0.7.3"
+  }
+}
