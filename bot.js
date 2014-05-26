@@ -71,8 +71,9 @@ client.addListener('pm', function (from, message) {
 
 var loadPlugins = function () {
   logger.log('info', "[" + config.nick + "] loading plugins..");
-  require('./plugins/users.js')(config, client, logger);
-  require('./plugins/bgs.js')(config, client, logger);
+  let users = require('./plugins/users.js')(config, client, logger);-
+  //users.isRegUser();
+  require('./plugins/bgs.js')(config, client, logger, users);
 }();
 
 client.connect(3, function() {

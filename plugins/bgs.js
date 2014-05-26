@@ -6,8 +6,11 @@ const
 
 var bg_memory = [];
 
-module.exports = function(config, client, logger) {
+let users = null;
+
+module.exports = function(config, client, logger, users_module) {
   logger.log('info', "[BGs] plugin init");
+  users = users_module;
 
   Q.nfcall(request.get, 'http://' +  config.dbhost + ':' + config.dbport + '/users')
     .then(function(args) {
@@ -65,6 +68,9 @@ function listener(from, to, message, client) {
 }
 
 function bg(from, to, message, client) {
+
+  var user = users.getUser(from);
+
   // needs to pass usage data if incomplete
   var params = message.split(" ");
   var bg_value = 0;
@@ -88,13 +94,37 @@ function bg(from, to, message, client) {
     } else {
       client.say(from, converted);
     }
-    bg_memory.push({date: Date().UTC(), user: from, bg: bg_value}); 
+
+    var date = new Date();
+    bg_memory.push({date: date.toJSON(), user: from, bg: bg_value}); 
     while (bg_memory.length > 50) {
       bg_memory.shift();
     }
+
+    if (user.username != "") {
+      saveBG(from, user, bg, date);
+    }
+
+
   }
 }
 
 function bgoptin(from, to, message, client) {
   var params = message.split(" ");
+}
+
+function saveBG(from, user, bg, date) {
+  Q.nfcall(request.get, 'http://' +  config.dbhost + ':' + config.dbport + '/bgs/' + user)
+  .then(function(args){
+    if (args[0].statusCode === 404) {
+      logger.log('info', "[BGs] " + user + " has not opted in. Not saving bg.");
+      return args;
+    } else if (args[0].statusCode === 200) {
+      return args;
+    }
+  })
+  .catch(function(err) {
+      logger.log("error", "[BGs] problem  " + err.code);
+  })
+  .done();
 }

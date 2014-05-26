@@ -10,6 +10,26 @@ let identified = [];
 module.exports = function(config, client, logger) {
   logger.log('info', "[users] plugin init");
 
+  var plugin = {
+    isRegUser: function(nick) {
+      if (identified.map(function(e){return e.nick;}).indexOf(nick) > -1 ) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    getUser: function(nick) {
+      if (identified.map(function(e){return e.nick;}).indexOf(nick) > -1 ) {
+        return identified[identified.map(function(e){return e.nick;}).indexOf(nick)];
+      } else {
+        var blank = new Object();
+        blank.username = "";
+        blank.nick = nick;
+        return blank;
+      }
+    }
+  };
+
   Q.nfcall(request.get, 'http://' +  config.dbhost + ':' + config.dbport + '/users')
     .then(function(args) {
       if (args[0].statusCode === 404) {
@@ -31,13 +51,13 @@ module.exports = function(config, client, logger) {
         doc = JSON.parse(args[1]);
       }
 
-      if (JSON.stringify(doc.views) != JSON.stringify(views)) {
-        doc.views = views;
+      if (JSON.stringify(doc.views.by_hostmask) != JSON.stringify(views.by_hostmask)) {
+        doc.views.by_hostmask = views.by_hostmask;
         var options = {
           method: "PUT",
           url: 'http://' +  config.dbhost + ':' + config.dbport + '/users/_design/users',
           json: doc
-        }
+        };
         return Q.nfcall(request, options);
       } 
     })
@@ -51,6 +71,8 @@ module.exports = function(config, client, logger) {
       logger.log("error", "[users] problem accessing or creating database. Check configs. Error code: " + err.code);
     })
   .done();
+
+  return plugin;
 
 }
 
