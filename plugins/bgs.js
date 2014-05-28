@@ -6,11 +6,16 @@ const
 
 var bg_memory = [];
 
-let users = null;
+let 
+  users = null,
+  bot_config = null,
+  bot_logger = null;
 
 module.exports = function(config, client, logger, users_module) {
   logger.log('info', "[BGs] plugin init");
   users = users_module;
+  bot_config = config;
+  bot_logger = logger;
 
   Q.nfcall(request.get, 'http://' +  config.dbhost + ':' + config.dbport + '/users')
     .then(function(args) {
@@ -52,10 +57,10 @@ function listener(from, to, message, client) {
     bg(from, to, message, client);
   } else if ((/^!bgoops /).test(message)) {
 
-  } else if ((/^!bgoptin /).test(message)) {
+  } else if ((/^!bgoptin/).test(message)) {
     bgoptin(from, to, message, client);
   } else if ((/^!bgoptout /).test(message)) {
-    
+    bgoptout(from, to, message, client);
   } else if ((/^!last /).test(message) || (/^!lastbgs /).test(message)) {
     
   } else if ((/^!esta1c /).test(message) || (/^!ea1c /).test(message)) {
@@ -102,7 +107,7 @@ function bg(from, to, message, client) {
     }
 
     if (user.username != "") {
-      saveBG(from, user, bg, date);
+      //saveBG(from, user, bg, date);
     }
 
 
@@ -110,21 +115,68 @@ function bg(from, to, message, client) {
 }
 
 function bgoptin(from, to, message, client) {
-  var params = message.split(" ");
+  let params = message.split(" ");
+
+  let user = users.getUser(from);
+
+  let usage = "bgoptin <count> {days|entries}";
+
+  if (!isNaN(params[1]) && (params[2] == "days" || params[2] == "entries") ) {
+
+    if (user.username != "" && user.username != null && user.username != undefined) {
+      Q.nfcall(request.get, 'http://' +  bot_config.dbhost + ':' + bot_config.dbport + '/users/' + user.username)
+      .then(function(args){
+        if (args[0].statusCode === 200) {
+          var this_user = JSON.parse(args[1]);
+          this_user.bgoptin = true;
+          this_user.bgcount = params[1];
+          this_user.bgunits = params[2];
+          var options = {
+            method: "PUT",
+            url: 'http://' +  bot_config.dbhost + ':' + bot_config.dbport + '/users/' + user.username,
+            json: this_user
+          };
+          return Q.nfcall(request, options);
+        } else {
+          throw args;
+        }
+      })
+      .then(function(args){
+        if (args[0].statusCode === 201) {
+          client.say(from, "BGs will be logged for " + params[1] + " " + params[2]);
+        } else {
+          throw args;
+        }
+      })
+      .catch(function(err) {
+        client.say(from, "Could not update your BG settings.");
+        bot_logger.log("error", "[BGs] bgoptin problem  " + err.code);
+      })
+      .done();
+    } else {
+      client.say(from, "Please identify or register first.");
+    }
+
+  } else {
+    client.say(from, usage);
+  }
+
 }
 
 function saveBG(from, user, bg, date) {
-  Q.nfcall(request.get, 'http://' +  config.dbhost + ':' + config.dbport + '/bgs/' + user)
+  Q.nfcall(request.get, 'http://' +  bot_config.dbhost + ':' + bot_config.dbport + '/users/' + user.username)
   .then(function(args){
     if (args[0].statusCode === 404) {
-      logger.log('info', "[BGs] " + user + " has not opted in. Not saving bg.");
+      bot_logger.log('info', "[BGs] " + JSON.stringify(user) + " has not opted in. Not saving bg.");
       return args;
     } else if (args[0].statusCode === 200) {
+      console.log(args);
       return args;
     }
   })
   .catch(function(err) {
-      logger.log("error", "[BGs] problem  " + err.code);
+      bot_logger.log("error", "[BGs] problem  " + err.code);
   })
   .done();
 }
+
