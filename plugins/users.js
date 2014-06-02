@@ -84,6 +84,8 @@ function listener(from, to, message, client, logger, config) {
     identify(from, to, message, client, logger, config);
   } else if ((/^hostmask/).test(message.args[1])) {
     hostmask(from, to, message, client, logger, config);
+  } else if ((/^whoami/).test(message.args[1])) {
+    whoami(from, to, message, client, logger, config);
   }
 }
 
@@ -248,8 +250,6 @@ function hostmask (from, to, message, client, logger, config) {
 
 function joinListener(channel, nick, message, client, logger, config) {
   client.whois(nick, function(info) {
-    //console.log(info);
-    //console.log(info.nick + "!" + info.user + "@" + info.host);
     if (info.nick != config.nick) {
       var options = {
         method: "GET",
@@ -261,7 +261,6 @@ function joinListener(channel, nick, message, client, logger, config) {
       }; 
 
       request(options,function(error, response, body){
-        //console.log(JSON.parse(body));
         if (error) {
           logger.log('error', '[users] Error in joinListener: ' + JSON.stringify(err));
           return;
@@ -284,5 +283,13 @@ function partListener(channel, nick, reason, message, client, logger, config) {
   while (identified.map(function(e){return e.nick;}).indexOf(nick) > -1) {
     identified.splice(identified.map(function(e){return e.nick;}).indexOf(nick),1);
   }
-  //console.log("users: " + JSON.stringify(identified));
+}
+
+function whoami(from, to, message, client, logger, config) {
+  if (identified.map(function(e){return e.nick;}).indexOf(from) > -1 ) {
+    var user = identified[identified.map(function(e){return e.nick;}).indexOf(from)];
+    client.say(from, "You are " + user.username);
+  } else {
+    client.say(from,"You are not identified.");
+  }
 }
