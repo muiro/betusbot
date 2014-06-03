@@ -6,90 +6,27 @@ const
   views = require('./users_views.js');
 
 let identified = [];
+var users_module = {
+  test: "test"
+};
 
-module.exports = function(config, client, logger) {
-  logger.log('info', "[users] plugin init");
-
-  var plugin = {
-    isRegUser: function(nick) {
-      if (identified.map(function(e){return e.nick;}).indexOf(nick) > -1 ) {
-        return true;
-      } else {
-        return false;
-      }
-    },
-    getUser: function(nick) {
-      if (identified.map(function(e){return e.nick;}).indexOf(nick) > -1 ) {
-        return identified[identified.map(function(e){return e.nick;}).indexOf(nick)];
-      } else {
-        var blank = new Object();
-        blank.username = "";
-        blank.nick = nick;
-        return blank;
-      }
-    }
-  };
-
-  Q.nfcall(request.get, 'http://' +  config.dbhost + ':' + config.dbport + '/users')
-    .then(function(args) {
-      if (args[0].statusCode === 404) {
-        //create database
-        logger.log('info', "[users] users database not found. Creating now.");
-        return Q.nfcall(request.put, 'http://' + config.dbhost + ':' + config.dbport + '/users');
-      } else {
-        return args[0];
-      }
-    })
-    .then(function(args){
-      return Q.nfcall(request.get, 'http://' +  config.dbhost + ':' + config.dbport + '/users/_design/users');
-    })
-    .then(function(args) {
-      var doc = "";
-      if(args[0].statusCode === 404) {
-        doc = { views: {} };
-      } else if (args[0].statusCode === 200) {
-        doc = JSON.parse(args[1]);
-      }
-
-      if (JSON.stringify(doc.views.by_hostmask) != JSON.stringify(views.by_hostmask)) {
-        doc.views.by_hostmask = views.by_hostmask;
-        var options = {
-          method: "PUT",
-          url: 'http://' +  config.dbhost + ':' + config.dbport + '/users/_design/users',
-          json: doc
-        };
-        return Q.nfcall(request, options);
-      } 
-    })
-    .then(function(args) {
-      logger.log("info", "[users] All DB's good, adding listeners for commands");    
-      client.addListener('pm', function(from, to, message){listener(from, to, message, client, logger, config);});
-      client.addListener('join', function(channel, nick, message){joinListener(channel, nick, message, client, logger, config);});
-      client.addListener('part', function(channel, nick, reason, message){partListener(channel, nick, reason, message, client, logger, config);});
-    })
-    .catch(function(err) {
-      logger.log("error", "[users] problem accessing or creating database. Check configs. Error code: " + err.code);
-    })
-  .done();
-
-  return plugin;
-
-}
 
 function listener(from, to, message, client, logger, config) {
   //console.log(JSON.stringify(message));
   if ((/^register/).test(message.args[1])) { 
-    register(from, to, message, client, logger, config);
+    users_module.register(from, to, message, client, logger, config);
   } else if ((/^identify/).test(message.args[1])) {
-    identify(from, to, message, client, logger, config);
+    users_module.identify(from, to, message, client, logger, config);
   } else if ((/^hostmask/).test(message.args[1])) {
-    hostmask(from, to, message, client, logger, config);
+    users_module.hostmask(from, to, message, client, logger, config);
   } else if ((/^whoami/).test(message.args[1])) {
-    whoami(from, to, message, client, logger, config);
+    users_module.whoami(from, to, message, client, logger, config);
   }
-}
+};
 
-function register (from, to, message, client, logger, config) {
+users_module.register = function register(from, to, message, client, logger, config) {
+
+  this.usage = "test";
   var params = message.args[1].split(" ");
   if (params.length >= 3) {
     let 
@@ -131,9 +68,17 @@ function register (from, to, message, client, logger, config) {
   } else {
     client.say(from,"Usage: register <username> <password>");
   }
-}
+};
+users_module.register.usage = "register <username> <password>";
+users_module.register.description = "Registering with diabot allows you to use the flair features and," + 
+  " if you've opted into data collection and set a hostmask, lets your BG information follow nickname changes." +
+  " It also allows awaxa to consider you for additional privileges. However, it is not compulsary," +
+  " and most members of the channel aren't registered there. Once you've registered," +
+  " you can identify yourself to have access to these features.";
 
-function identify (from, to, message, client, logger, config) {
+
+
+users_module.identify = function identify (from, to, message, client, logger, config) {
   var params = message.args[1].split(" ");
   if (params.length >= 3) {
     let 
@@ -173,9 +118,11 @@ function identify (from, to, message, client, logger, config) {
   } else {
     client.say(from,"Usage: identify <username> <password>");
   }
-}
+};
+users_module.identify.usage = "identify <username> <password>";
+users_module.identify.description = "Identify to the bot in order to log BGs.";
 
-function hostmask (from, to, message, client, logger, config) { 
+users_module.hostmask = function hostmask (from, to, message, client, logger, config) { 
   let 
     params = message.args[1].split(" "),
     username = "";
@@ -246,7 +193,9 @@ function hostmask (from, to, message, client, logger, config) {
   } else {
     client.say(from,"Usage: hostmask <add|remove> <password>!<ident>@<example.org>");
   }
-}
+};
+users_module.hostmask.usage = "hostmask <add|remove> <password>!<ident>@<example.org>";
+users_module.hostmask.description = "Adds a host mask that automatically identifies you when joining the channel.";
 
 function joinListener(channel, nick, message, client, logger, config) {
   client.whois(nick, function(info) {
@@ -285,11 +234,97 @@ function partListener(channel, nick, reason, message, client, logger, config) {
   }
 }
 
-function whoami(from, to, message, client, logger, config) {
+users_module.whoami = function whoami(from, to, message, client, logger, config) {
   if (identified.map(function(e){return e.nick;}).indexOf(from) > -1 ) {
     var user = identified[identified.map(function(e){return e.nick;}).indexOf(from)];
     client.say(from, "You are " + user.username);
   } else {
     client.say(from,"You are not identified.");
   }
-}
+};
+users_module.whoami.usage = "whoami";
+users_module.whoami.description = "Displays the user you are identified as.";
+
+
+module.exports = function(config, client, logger) {
+  logger.log('info', "[users] plugin init");
+
+  var help = [];
+  for (var key in users_module) {
+    var object = {
+      command: key,
+      usage: users_module[key].usage,
+      description: users_module[key].description
+    };
+
+    if (object.usage || object.description) {
+      help.push(object);
+    }
+  }
+
+  var plugin = {
+    isRegUser: function(nick) {
+      if (identified.map(function(e){return e.nick;}).indexOf(nick) > -1 ) {
+        return true;
+      } else {
+        return false;
+      }
+    },
+    getUser: function(nick) {
+      if (identified.map(function(e){return e.nick;}).indexOf(nick) > -1 ) {
+        return identified[identified.map(function(e){return e.nick;}).indexOf(nick)];
+      } else {
+        var blank = new Object();
+        blank.username = "";
+        blank.nick = nick;
+        return blank;
+      }
+    },
+    help: help
+  };
+
+  Q.nfcall(request.get, 'http://' +  config.dbhost + ':' + config.dbport + '/users')
+    .then(function(args) {
+      if (args[0].statusCode === 404) {
+        //create database
+        logger.log('info', "[users] users database not found. Creating now.");
+        return Q.nfcall(request.put, 'http://' + config.dbhost + ':' + config.dbport + '/users');
+      } else {
+        return args[0];
+      }
+    })
+    .then(function(args){
+      return Q.nfcall(request.get, 'http://' +  config.dbhost + ':' + config.dbport + '/users/_design/users');
+    })
+    .then(function(args) {
+      var doc = "";
+      if(args[0].statusCode === 404) {
+        doc = { views: {} };
+      } else if (args[0].statusCode === 200) {
+        doc = JSON.parse(args[1]);
+      }
+
+      if (JSON.stringify(doc.views.by_hostmask) != JSON.stringify(views.by_hostmask)) {
+        doc.views.by_hostmask = views.by_hostmask;
+        var options = {
+          method: "PUT",
+          url: 'http://' +  config.dbhost + ':' + config.dbport + '/users/_design/users',
+          json: doc
+        };
+        return Q.nfcall(request, options);
+      } 
+    })
+    .then(function(args) {
+      logger.log("info", "[users] All DB's good, adding listeners for commands");    
+      client.addListener('pm', function(from, to, message){listener(from, to, message, client, logger, config);});
+      client.addListener('join', function(channel, nick, message){joinListener(channel, nick, message, client, logger, config);});
+      client.addListener('part', function(channel, nick, reason, message){partListener(channel, nick, reason, message, client, logger, config);});
+    })
+    .catch(function(err) {
+      logger.log("error", "[users] problem accessing or creating database. Check configs. Error code: " + err.code);
+    })
+  .done();
+
+  return plugin;
+
+};

@@ -8,15 +8,16 @@ const
 var bg_memory = [];
 
 let 
-  users = null,
+  plugins = null,
   bot_config = null,
   bot_logger = null;
 
-module.exports = function(config, client, logger, users_module) {
+module.exports = function(config, client, logger, bot_plugins) {
   logger.log('info', "[BGs] plugin init");
-  users = users_module;
+  plugins = bot_plugins;
   bot_config = config;
   bot_logger = logger;
+  console.log(plugins);
 
   Q.nfcall(request.get, 'http://' +  config.dbhost + ':' + config.dbport + '/users')
     .then(function(args) {
@@ -92,16 +93,21 @@ function listener(from, to, message, client) {
     
   } else if ((/^!estbg /).test(message) || (/^!eag /).test(message) || (/^!ebg /).test(message)) {
     
-  } else if ((/^!disclaimer /).test(message)) {
-    
+  } else if ((/^!disclaimer/).test(message)) {
+    disclaimer(from, to, message, client);
   }else if ((/^!prune /).test(message)) {
     prune(from, to, message, client);
   }
 }
 
 function bg(from, to, message, client) {
+  let 
+    usage = "bg <test result>",
+    description = "Stores your blood sugar so it can be recalled later with lastbgs." +
+      " It also prints a conversion from milligrams per decileter, used in the United States," +
+      " to millimoles per liter, used in Europe, or the corresponding reverse conversion.";
 
-  var user = users.getUser(from);
+  var user = plugins.users.getUser(from);
 
   // needs to pass usage data if incomplete
   var params = message.split(" ");
@@ -144,7 +150,7 @@ function bg(from, to, message, client) {
 function bgoptin(from, to, message, client) {
   let params = message.split(" ");
 
-  let user = users.getUser(from);
+  let user = plugins.users.getUser(from);
 
   let usage = "bgoptin <count> {days|entries}";
 
@@ -257,7 +263,7 @@ function UUID() {
 function bgoptout(from, to, message, client) {
   let params = message.split(" ");
 
-  let user = users.getUser(from);
+  let user = plugins.users.getUser(from);
 
   let usage = "bgoptout";
 
@@ -307,11 +313,11 @@ function pruneAll() {
   Q.nfcall(request,options)
   .then(function(args){
     if (args[0].statusCode === 200) {
-      var users = JSON.parse(args[1]).rows; 
-      users.shift(); //first doc is the design document
+      var prune_users = JSON.parse(args[1]).rows; 
+      prune_users.shift(); //first doc is the design document
       //console.log(users);
-      if (users.length > 0) {
-        users.forEach(function(element){
+      if (prune_users.length > 0) {
+        prune_users.forEach(function(element){
           pruneUser(element.id);
         });
       } else {
@@ -434,9 +440,19 @@ function pruneUser(user) {
 function prune(from, to, message, client) {
   let params = message.split(" ");
 
-  let user = users.getUser(params[1]);
+  let user = plugins.users.getUser(params[1]);
 
   let usage = "prune <user>";
 
   pruneUser(user.username);
+}
+
+function disclaimer(from, to, message, client) {
+  var disclaimer = "Remember that none of us are medical professionals in any way." +
+    " Please consult your physician or healthcare provider when in doubt. Thank you.";
+  if (to.indexOf("#") >= 0) {
+    client.say(to, disclaimer);
+  } else {
+    client.say(from, disclaimer);
+  }
 }
