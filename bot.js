@@ -39,7 +39,7 @@ var client = new irc.Client(config.server, config.nick, {
   sasl: false,
   stripColors: false,
   channelPrefixes: "&#",
-  messageSplit: 512
+  messageSplit: 250
 });
 
 
@@ -75,21 +75,33 @@ client.addListener('pm', function (from, message) {
     var params = message.split(' ');
     client.say('nickserv','verify register ' + config.nick + ' ' + params[1]);
   } else if ((/^help/).test(message) || (/^!help/).test(message)) {
-    //plugins.forEach(function(plugin){
+    var params = message.split(' ');
+    var commands = [];
     Object.keys(plugins).forEach(function(key){
-      // client.say(from, plugins[key]);
-      
       if (plugins[key]) {
-        var commands = [];
         plugins[key].help.forEach(function(help){
-          // Object.keys(help).forEach(function(helpkey){
-          //   client.say(from, helpkey + " " + help[helpkey]);
-          // });
-          commands.push(help.command);
+          if (params.length >= 2) {
+
+            if (help.command.toLowerCase() === params[1].toLowerCase()) {
+              console.log(help.command + ": " + params[1]);
+              if (help.usage) { 
+                client.say(from, "\u0002" + "Usage: " + "\u000F" + help.usage); 
+              }
+              if (help.description) { 
+                client.say(from, "\u0002" + "Description: " + "\u000F" + help.description); 
+              }
+            }
+          } else {
+            commands.push(help.command);
+          }
         });
-        client.say(from, commands.join(', '));
       }
     });
+
+    if (params.length < 2) {
+      client.say(from, "\u0002" + "Commands: " + "\u000F" + commands.join(', '));
+      client.say(from, "Use " + "\u0002" + "help <command>" + "\u000F" + " to get more info on a command");
+    }
   }
 
 });
